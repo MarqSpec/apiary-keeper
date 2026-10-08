@@ -1,0 +1,106 @@
+# The proxy's servers (ARCHITECTURE.md D-16), rendered at start by the image's entrypoint: envsubst replaces the
+# PROXY_* settings (README.md; DEPLOYMENT.md §3) and NGINX_LOCAL_RESOLVERS, nothing else. Validated first by
+# docker-entrypoint.d/05-proxy-settings.envsh, which also sets PROXY_LISTEN_* and PROXY_GATE.
+
+# The client's address comes from the header Railway's edge sets (X-Real-IP). Only Railway's edge and the private
+# network can reach this service, so every peer is trusted to set it; locally the header is absent and the peer is used.
+set_real_ip_from  0.0.0.0/0;
+set_real_ip_from  ::/0;
+real_ip_header    X-Real-IP;
+
+# Railway's edge terminates TLS and always sends X-Forwarded-Proto: https; with no header (locally) it is our own scheme.
+map $http_x_forwarded_proto $proxy_forwarded_proto {
+    default  $scheme;
+    https    https;
+    http     http;
+}
+
+# HSTS only over HTTPS; an empty value sends no header.
+map $proxy_forwarded_proto $proxy_hsts {
+    default  "";
+    https    "max-age=31536000; includeSubDomains";
+}
+
+# Any host name that is not the app's: refused, so the app sees only its own domains.
+server {
+    ${PROXY_LISTEN_DEFAULT}
+    server_name  _;
+    return 421;
+}
+
+server {
+    ${PROXY_LISTEN_APP}
+    server_name  ${PROXY_APP_HOSTS};
+
+    client_max_body_size  ${PROXY_MAX_BODY_SIZE};
+
+    add_header  Strict-Transport-Security  $proxy_hsts  always;
+    add_header  X-Content-Type-Options     nosniff  always;
+    add_header  Content-Security-Policy    "frame-ancestors 'none'"  always;
+    add_header  X-Frame-Options            DENY  always;
+    add_header  Referrer-Policy            strict-origin-when-cross-origin  always;
+
+    # Resolved per request, so the proxy starts before the app does and follows it across redeploys.
+    resolver  ${NGINX_LOCAL_RESOLVERS}  valid=10s;
+    set  $proxy_app  ${PROXY_APP_UPSTREAM};
+
+    proxy_http_version  1.1;
+    proxy_set_header  Host               $host;
+    proxy_set_header  X-Forwarded-For    $remote_addr;
+    proxy_set_header  X-Forwarded-Proto  $proxy_forwarded_proto;
+    proxy_set_header  X-Forwarded-Host   $host;
+    proxy_set_header  X-Real-IP          "";
+
+    # The staging gate (PROXY_BASIC_AUTH): "auth_basic off;", or basic authentication against the password file
+    # with the Authorization header kept from the app. Server-wide, so a new location is gated unless it opts out.
+    ${PROXY_GATE}
+
+    # Refused before any location and before the gate, so neither reaches the app in another form: a target holding a
+    # '#' (no client sends a fragment: RFC 9112), and a path holding an encoded slash, which nginx turns into a
+    # separator (/metrics/x%2F../.. is / here) and the app would then receive as one. No app route or asset needs
+    # either; a query string may hold %2F, so only the path is read for it.
+    if ($request_uri ~ "#|^[^?]*%2[Ff]") {
+        return 404;
+    }
+
+    # The app is sent the path nginx resolved and chose a location and the gate by, re-encoded, never the target as the
+    # client wrote it, so a difference between nginx's and the app's path parsing cannot route the app elsewhere: sent
+    # raw, /health#/../metrics was /health here (open, no gate) and /metrics to the app. The query string goes on as
+    # sent. rewrite marks the path as changed, which is what makes proxy_pass send it instead of the client's target.
+    # It runs after the refusals above, since break ends this server's rewrite directives.
+    rewrite  ^  $uri  break;
+
+    # The app's metrics are for Prometheus on the private network, never the internet. Matched on the decoded,
+    # dot-resolved path, ignoring case and whatever follows the name, because the app's routing ignores case and a
+    # trailing slash (/METRICS, /metrics/, /metrics/.); the app is sent that same path (above). Answered before the gate
+    # asks, so 404 with or without credentials.
+    location ~* ^/+metrics {
+        return 404;
+    }
+
+    # Open behind the gate, so the deploy's smoke check (scripts/smoke-check.sh) reaches it.
+    location = /health {
+        auth_basic  off;
+        proxy_pass  http://$proxy_app;
+    }
+
+    location / {
+        proxy_pass  http://$proxy_app;
+    }
+}
+
+# Prometheus metrics for the proxy itself, for a scraper on the private network, on their own port, which no domain is
+# attached to.
+server {
+    ${PROXY_LISTEN_METRICS}
+    access_log  off;
+
+    location = /metrics {
+        default_type  "text/plain; version=0.0.4";
+        return 200 "# HELP nginx_connections_active Active client connections, including waiting ones.\n# TYPE nginx_connections_active gauge\nnginx_connections_active $connections_active\n# HELP nginx_connections_reading Connections whose request header nginx is reading.\n# TYPE nginx_connections_reading gauge\nnginx_connections_reading $connections_reading\n# HELP nginx_connections_writing Connections nginx is writing a response to.\n# TYPE nginx_connections_writing gauge\nnginx_connections_writing $connections_writing\n# HELP nginx_connections_waiting Idle keep-alive connections.\n# TYPE nginx_connections_waiting gauge\nnginx_connections_waiting $connections_waiting\n";
+    }
+
+    location / {
+        return 404;
+    }
+}

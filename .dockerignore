@@ -1,0 +1,29 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/TestResults/
+**/node_modules/
+**/dist/
+.git/
+.github/
+.claude/
+documentation/
+*.md
+Dockerfile
+compose.yaml
+.dockerignore
+# The proxy image's own build context (proxy/Dockerfile)
+proxy/
+# The claimed issues' worktrees (scripts/claim.sh): other branches' sources, never this build's
+.worktrees/
+
+# Python: the local environment and caches are rebuilt inside the image
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# TypeScript incremental build info: rebuilt inside the image
+**/*.tsbuildinfo

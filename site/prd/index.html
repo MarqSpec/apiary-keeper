@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Apiary-Keeper Proposal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column like a printed brief; a faint comb fades out under the masthead. Prints clean on white Letter paper. */
+:root {
+  --bg: #F3E3C6;          /* beeswax tan */
+  --paper: #FDF5E8;       /* cream panels */
+  --ink: #1F1B16;         /* bee black */
+  --ink-2: #5A4E44;
+  --honey: #8A5100;
+  --honey-soft: #FFDDB3;
+  --rule: #D3BC98;
+  --forage: #4F6542;
+  --comb: rgba(138, 81, 0, 0.16);
+  --display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #19120C; --paper: #261E17; --ink: #EFE0D5; --ink-2: #D6C3B5; --honey: #FFB95A;
+    --honey-soft: #6A3C00; --rule: #51443A; --forage: #B5CEA4; --comb: rgba(255, 185, 90, 0.10); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #19120C; --paper: #261E17; --ink: #EFE0D5; --ink-2: #D6C3B5; --honey: #FFB95A;
+  --honey-soft: #6A3C00; --rule: #51443A; --forage: #B5CEA4; --comb: rgba(255, 185, 90, 0.10); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--ink);
+  font: 400 1rem/1.6 var(--body);
+  padding-inline: 20px; padding-block: 0 64px;
+}
+.sheet { max-width: 46rem; margin: 0 auto; display: flex; flex-direction: column; gap: 2.75rem; }
+
+/* masthead with a fading honeycomb */
+.masthead { position: relative; padding-block: 3.5rem 0.5rem; isolation: isolate; }
+.masthead::before {
+  content: ""; position: absolute; z-index: -1; inset: 0 -100vw;
+  background:
+    linear-gradient(to bottom, transparent 0, var(--bg) 92%),
+    var(--comb-img) 0 0 / 27.7128px 48px repeat;
+}
+:root { --comb-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='27.7128' height='48' viewBox='0 0 27.7128 48'%3E%3Cpath d='M13.8564 0L27.7128 8L27.7128 24L13.8564 32L0 24L0 8ZM13.8564 32L13.8564 48' fill='none' stroke='%238A5100' stroke-opacity='0.16'/%3E%3C/svg%3E"); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --comb-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='27.7128' height='48' viewBox='0 0 27.7128 48'%3E%3Cpath d='M13.8564 0L27.7128 8L27.7128 24L13.8564 32L0 24L0 8ZM13.8564 32L13.8564 48' fill='none' stroke='%23FFB95A' stroke-opacity='0.10'/%3E%3C/svg%3E"); } }
+:root[data-theme="dark"] { --comb-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='27.7128' height='48' viewBox='0 0 27.7128 48'%3E%3Cpath d='M13.8564 0L27.7128 8L27.7128 24L13.8564 32L0 24L0 8ZM13.8564 32L13.8564 48' fill='none' stroke='%23FFB95A' stroke-opacity='0.10'/%3E%3C/svg%3E"); }
+
+.kicker { font: 500 0.75rem/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--honey); }
+h1 { font: 600 clamp(2.2rem, 6vw, 3.1rem)/1.1 var(--display); margin: 0.4rem 0 0.75rem; text-wrap: balance; }
+.lede { font-size: 1.15rem; line-height: 1.55; color: var(--ink); max-width: 40rem; margin: 0; }
+.byline { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin-top: 1.1rem; font-size: 0.875rem; color: var(--ink-2); }
+.byline .draft { color: var(--honey); font-weight: 600; }
+
+h2 { font: 600 1.45rem/1.25 var(--display); margin: 0 0 0.85rem; text-wrap: balance; }
+h3 { font: 600 1rem/1.35 var(--body); margin: 0; }
+p { margin: 0; max-width: 42rem; }
+section { display: flex; flex-direction: column; gap: 0.85rem; }
+.muted { color: var(--ink-2); }
+
+.problems { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.problems li { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 0.9rem 1rem; min-width: 0; }
+.problems strong { display: block; font-weight: 600; margin-bottom: 0.2rem; }
+
+.areas { display: flex; flex-direction: column; gap: 1.6rem; }
+.area { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 0.4rem 1.5rem; padding-top: 1.1rem; border-top: 1px solid var(--rule); break-inside: avoid; }
+.area header { display: flex; flex-direction: column; gap: 0.3rem; }
+.when { font: 500 0.72rem/1.3 var(--mono); letter-spacing: 0.04em; color: var(--honey); text-transform: uppercase; }
+.area ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.area li::marker { color: var(--honey); }
+.note { font-size: 0.9rem; color: var(--ink-2); margin-top: 0.35rem; }
+
+.phases { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.phases th, .phases td { text-align: left; vertical-align: top; padding: 0.7rem 0.75rem 0.7rem 0; border-bottom: 1px solid var(--rule); }
+.phases th { font: 500 0.72rem/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.phases td:first-child { white-space: nowrap; font-weight: 600; color: var(--honey); font-variant-numeric: tabular-nums; }
+.table-wrap { overflow-x: auto; }
+.phases tr { break-inside: avoid; }
+
+.costs { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.cost { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.cost .amount { font: 600 1.35rem/1.2 var(--display); font-variant-numeric: tabular-nums; }
+
+.plain { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.plain li::marker { color: var(--honey); }
+
+.asks { background: var(--honey-soft); border-radius: 8px; padding: 1.25rem 1.35rem; display: flex; flex-direction: column; gap: 0.9rem; break-inside: avoid; }
+.asks ol { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.questions { display: grid; gap: 0.5rem 1.5rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); margin: 0; padding: 0; list-style: none; }
+.questions li { padding-left: 1.1rem; position: relative; }
+.questions li::before { content: "?"; position: absolute; left: 0; font-weight: 600; color: var(--honey); }
+
+.online { display: flex; flex-wrap: wrap; gap: 0.3rem 0.75rem; align-items: baseline; font-size: 0.875rem; color: var(--ink-2); border-top: 1px solid var(--rule); padding-top: 1rem; }
+.online a { color: var(--honey); font-family: var(--mono); word-break: break-all; }
+a:focus-visible { outline: 2px solid var(--honey); outline-offset: 2px; }
+
+@media (max-width: 560px) {
+  .area { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Print: Letter, white paper, the online link in every page footer */
+@page {
+  size: Letter; margin: 0.7in 0.75in 0.8in;
+  @bottom-left { content: "Apiary-Keeper proposal · draft for discussion · read online: https://apiary-keeper-intro.marqspec.com"; font: 8pt "IBM Plex Sans", sans-serif; color: #5A4E44; }
+  @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "IBM Plex Sans", sans-serif; color: #5A4E44; }
+}
+@media print {
+  :root, :root[data-theme="dark"] {
+    --bg: #FFFFFF; --paper: #FFFFFF; --ink: #1F1B16; --ink-2: #4A3F35; --honey: #8A5100; --honey-soft: #FFF1DE; --rule: #D3BC98; color-scheme: light;
+  }
+  body { padding: 0; font-size: 10.5pt; }
+  .sheet { max-width: none; gap: 1.6rem; }
+  .masthead { padding-top: 0; }
+  .masthead::before { display: none; }
+  h2 { break-after: avoid; }
+  .problems li, .cost { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <header class="masthead">
+    <div class="kicker">A proposal · Texas South Plains</div>
+    <h1>Apiary-Keeper</h1>
+    <p class="lede">One place to keep track of every yard, hive and inspection, built for a family-run apiary and made to work on a phone in the field, even with no signal.</p>
+    <div class="byline">
+      <span>Prepared by Adam Marquette</span>
+      <span>October 2026</span>
+      <span class="draft">Draft for discussion · demo built and no agreements yet</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>The problems it would fix</h2>
+    <ul class="problems">
+      <li><strong>History is scattered</strong>Notes live in notebooks, phone photos and memory, so it is hard to look back at one hive's story.</li>
+      <li><strong>Timing is easy to miss</strong>Inspections, mite treatments and feeding run on the season, across many yards at once.</li>
+      <li><strong>Yield and cost are guesswork</strong>Honey, wax, nucs and queens are tracked apart from the colonies that produced them.</li>
+      <li><strong>Paperwork is by hand</strong>Registrations, treatment records, labels and pollination contracts are all manual today.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What it would do</h2>
+    <p class="muted">Grouped by area. The tag under each area says when it would arrive (see the phases below).</p>
+    <div class="areas">
+      <div class="area">
+        <header><h3>Yards and hives</h3><span class="when">First version</span></header>
+        <ul>
+          <li>Each yard with its location, county, access notes and what forage is nearby.</li>
+          <li>The landowner for each yard: contact, the arrangement (honey, a fee, or free), nearby crops and who sprays.</li>
+          <li>A reminder to update BeeCheck (FieldWatch) when hives move.</li>
+          <li>Every hive with a tag you can scan, its box count, type and status.</li>
+          <li>Each queen: where she came from, her mark, when she went in, and when she was replaced.</li>
+          <li>A full family tree for every colony: splits, merges, swarm captures, requeens and moves. Nothing is ever erased.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>Inspections in the field</h3><span class="when">First version</span></header>
+        <ul>
+          <li>Record an inspection in under a minute with a few taps: queen or eggs seen, frames of brood, pattern, stores, temperament, disease signs, what you did.</li>
+          <li>Add phone photos, a short video or a voice note.</li>
+          <li>Works with no cell signal and catches up when you are back in range.</li>
+          <li>Walk a whole yard, scanning tags and quick-grading each hive.</li>
+          <li>Big buttons that work with gloves on, readable in the sun, simple enough for the kids to help.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>Health and treatments</h3><span class="when">First version</span></header>
+        <ul>
+          <li>Mite counts, noting the method (alcohol wash, sugar roll, sticky board).</li>
+          <li>Treatment records: product, label number, dose, dates in and out, who applied it.</li>
+          <li>Harvest from a treated hive is blocked until its withdrawal period is over.</li>
+          <li>Losses recorded with a suspected cause.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>Planning the week</h3><span class="when">First version, weather second</span></header>
+        <ul>
+          <li>Tasks for each hive or yard, with a due date and who is doing it.</li>
+          <li>Seasonal reminders made for you: spring build-up, swarm season, the flow, fall prep and winter.</li>
+          <li>A daily plan in driving order, with a packing list of feed, supers and treatments.</li>
+          <li>Weather for each yard from the National Weather Service, so a hail or freeze warning moves the plan.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>Family group chat</h3><span class="when">Second version</span></header>
+        <ul>
+          <li>A helper in your family's Telegram group that posts the day's tasks, overdue treatments, harvest totals and new orders.</li>
+          <li>Mark a task done, or send a photo of a hive by its tag number, right from the chat.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>Honey, stock and sales</h3><span class="when">Second version</span></header>
+        <ul>
+          <li>Each harvest tied to the hives it came from: weight, moisture and floral source, grouped into lots you can trace.</li>
+          <li>Stock of honey, wax, nucs, packages, queens, equipment, feed and treatments, with reorder reminders.</li>
+          <li>Customers, orders and invoices, with wholesale and retail prices and nuc and queen pre-orders.</li>
+          <li>Works with Square or Shopify for payments, and exports to QuickBooks for the books.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>Your own shop website</h3><span class="when">Second version</span></header>
+        <ul>
+          <li>A public site in your branding with what is in stock right now: honey by floral source, comb, wax, nucs and queens.</li>
+          <li>Orders and pre-orders for pickup, local delivery or market pickup, paid through Square or Shopify. The site never sees card numbers.</li>
+          <li>Customer accounts with order history and pickup reminders by email.</li>
+          <li>Contact and swarm-removal request forms that come straight to you. Yards are shown by county only, never exact locations.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>Paperwork and reports</h3><span class="when">Second version</span></header>
+        <ul>
+          <li>Texas registration and interstate permit renewals tracked, with a reminder before Sept 1, plus the health certificate for bees you bring into Texas and the optional paid inspection.</li>
+          <li>The health certificate or affidavit attached to each sale of bees, nucs or queens.</li>
+          <li>A check that each hive carries its permanent mark, or the yard has a contact sign, as Texas requires.</li>
+          <li>Honey labels that follow current Texas rules.</li>
+          <li>A prompt to report to the Texas Apiary Inspection Service when you note a sign of American foulbrood, Tropilaelaps mites or the yellow-legged hornet. It never diagnoses; you decide.</li>
+          <li>Treatment records you can export.</li>
+          <li>Reports on survival, yield per hive and yard, cost per hive and margin per product.</li>
+        </ul>
+        <p class="note" style="grid-column: 2;">Every rule is checked against the Texas Apiary Inspection Service before it is built.</p>
+      </div>
+      <div class="area">
+        <header><h3>Pollination contracts</h3><span class="when">Third version</span></header>
+        <ul>
+          <li>Contracts with each grower: crop, hive count, minimum strength, rate per hive and dates.</li>
+          <li>Which hives are at which orchard, with move-in and move-out dates.</li>
+          <li>Strength reports and invoices for growers, and a page where growers can check their placements.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>An assistant, later</h3><span class="when">Fourth version · optional</span></header>
+        <ul>
+          <li>Ask questions in the family chat, like "which yards lost the most hives last winter?"</li>
+          <li>Speak an inspection out loud and have it written up for you.</li>
+          <li>It only ever suggests. A person approves anything that touches money, sales, customer messages or regulatory records.</li>
+        </ul>
+      </div>
+      <div class="area">
+        <header><h3>Swarm and bee removals</h3><span class="when">Optional · off unless you want it</span></header>
+        <ul>
+          <li>Removal requests, quotes, scheduling, before and after photos, and the rescued colony added to your hives.</li>
+          <li>Checks that your Texas registration and removal statement are current before a job is booked.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How it would roll out</h2>
+    <p class="muted">Each step is finished only when it works in your real routine.</p>
+    <div class="table-wrap">
+      <table class="phases">
+        <thead><tr><th>Step</th><th>What you would get</th><th>We know it works when</th></tr></thead>
+        <tbody>
+          <tr><td>Sample</td><td>A simple working version to try on your phone: yards, hives and photo inspections. I would also like to spend a week watching how you work.</td><td>You agree the inspection form and seasonal reminders are right.</td></tr>
+          <tr><td>First</td><td>Yards, landowners, hives, inspections with photos and video, treatments and tasks, working offline, with accounts for your family.</td><td>The family logs every inspection for four weeks without paper.</td></tr>
+          <tr><td>Second</td><td>The family chat helper, harvests and stock, sales, your shop website, weather and reports.</td><td>You can see yield and margin per yard for a full season.</td></tr>
+          <tr><td>Third</td><td>Pollination contracts with Texas growers.</td><td>One pollination season runs start to finish in the app.</td></tr>
+          <tr><td>Fourth</td><td>The assistant in the family chat.</td><td>Most spoken notes become correct records without fixing.</td></tr>
+          <tr><td>Later</td><td>Hive scales if you ever want them, and eastern New Mexico yards.</td><td>As needed.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Using it day to day</h2>
+    <ul class="plain">
+      <li><strong>On your phone, in the yard.</strong> It opens in the phone's web browser, on iPhone or Android, and can be added to the home screen like an app. There is nothing to download from an app store.</li>
+      <li><strong>On a computer, at home.</strong> The same app shows the bigger picture: every yard, the week ahead, harvests and sales.</li>
+      <li><strong>In the family group chat.</strong> Day-to-day reminders and quick updates where your family already talks.</li>
+      <li><strong>Your business stays yours.</strong> Only people you invite can sign in, with a password or an existing Google account, using proven, industry-standard security. You can ask for a second step at login, for yourself or anyone you invite. It is backed up every night, and nothing is shared or sold.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What it would cost to run</h2>
+    <p class="muted">Estimates for hosting, as of October 2026. Payment processing fees and a QuickBooks subscription are separate business costs.</p>
+    <div class="costs">
+      <div class="cost"><span class="amount">$21–32 a month</span><span>Hosting the app, including a separate test copy so trying new things never touches your real records.</span></div>
+      <div class="cost"><span class="amount">$1–36 more a month</span><span>Only with the assistant, depending on how much it is used. A monthly spending cap keeps it in check.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it would not do</h2>
+    <ul class="plain">
+      <li>It is not accounting software. It sends your numbers to QuickBooks instead.</li>
+      <li>It does not diagnose disease. It keeps your observations and photos.</li>
+      <li>It does not take card numbers. Square or Shopify handles payment.</li>
+      <li>It does not plan migratory moves out of state, like almond pollination in California.</li>
+    </ul>
+  </section>
+
+  <section class="asks">
+    <h2>What I would need from you</h2>
+    <ol>
+      <li>Try the sample version on your phone and tell me what feels wrong.</li>
+      <li>Let me shadow you for a week during the season.</li>
+      <li>Walk me through your yards and landowner arrangements. That list stays private and is never put online.</li>
+    </ol>
+    <h3>Questions for you</h3>
+    <ul class="questions">
+      <li>Do you do swarm or bee removals, or want to?</li>
+      <li>Do you already use Square, Shopify, or something else to take payments?</li>
+      <li>Do you do pollination contracts? Should they come sooner or later?</li>
+      <li>Who in the family would use it, and do you sell at markets?</li>
+    </ul>
+  </section>
+
+  <footer class="online">
+    <span>Read this online, and see updates:</span>
+    <a href="https://apiary-keeper-intro.marqspec.com">https://apiary-keeper-intro.marqspec.com</a>
+  </footer>
+</main>
+
+</body>
+</html>

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/ApiaryCopilot.IntegrationTests/ApiaryCopilot.IntegrationTests.csproj" />
+    <Project Path="tests/ApiaryCopilot.UnitTests/ApiaryCopilot.UnitTests.csproj" />
+  </Folder>
+  <Project Path="ApiaryCopilot.Api/ApiaryCopilot.Api.csproj" />
+  <Project Path="ApiaryCopilot.Domain/ApiaryCopilot.Domain.csproj" />
+  <Project Path="ApiaryCopilot.Infrastructure/ApiaryCopilot.Infrastructure.csproj" />
+</Solution>

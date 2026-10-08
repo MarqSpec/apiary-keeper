@@ -1,0 +1,47 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- A PackageVersion below also pins that package when it arrives transitively, so a security pin
+         reaches every project without each one adding a direct reference. -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Every PackageVersion carries a one-line comment: why this package. -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <!-- The test framework's own packages arrive with `dotnet new` and are pinned here by cpm-adopt.py. -->
+    <!-- FakeItEasy: test doubles in the unit tier. -->
+    <PackageVersion Include="FakeItEasy" Version="9.0.1" />
+    <!-- FluentAssertions v8+ is commercially licensed: stay below 8.0.0. -->
+    <PackageVersion Include="FluentAssertions" Version="7.2.2" />
+    <!-- Security pin: Microsoft.AspNetCore.OpenApi (the webapi template) pulls Microsoft.OpenApi 2.0.0, which
+         has a high-severity advisory (GHSA-v5pm-xwqc-g5wc, patched in 2.7.5); the NuGet audit fails the build. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.19.1-beta.1" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
+    <!-- EF Core: persistence in ApiaryCopilot.Infrastructure, on the .NET 10 line (CONVENTIONS.md §2). -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <!-- Npgsql: the EF Core provider for PostgreSQL (ARCHITECTURE.md D-2). -->
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!-- EF Core in-memory provider: the unit tier's stand-in database for query-filter tests only (§8.1). -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.12" />
+    <!-- EF Core design-time services for `dotnet ef migrations`; referenced by the startup project, never shipped. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
+    <!-- AWS SDK for S3: presigned URLs and object reads against the S3-compatible media bucket (ARCHITECTURE.md D-13). -->
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.104.1" />
+    <!-- IHostEnvironment, so the persistence library can tell Development apart without referencing ASP.NET Core. -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.12" />
+    <!-- TestHost: the unit tier hosts the API in memory (TestServer) to test what it serves (§8.1). -->
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.12" />
+    <!-- WebApplicationFactory: the unit tier hosts the real API in memory to test its surface (§8.1). -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <!-- OpenID Connect: the BFF in the API signs browsers in through Keycloak, code flow with PKCE (ARCHITECTURE.md D-19). -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
+    <!-- JWT bearer: agents call the API with Keycloak-issued access tokens (ARCHITECTURE.md D-19). -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>

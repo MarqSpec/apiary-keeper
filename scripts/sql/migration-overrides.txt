@@ -1,0 +1,4 @@
+# Reviewed exceptions to scripts/check-migration-sql.sh: one line per migration allowed a destructive or narrowing
+# statement, "<MigrationId> <reason>". A line here is merged through a pull request like any change, so the review
+# of that pull request is the review of the exception (DEPLOYMENT.md §9). It never exempts an UPDATE or DELETE on
+# the append-only tables. Empty: every migration so far is additive.

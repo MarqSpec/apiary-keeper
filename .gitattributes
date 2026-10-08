@@ -1,0 +1,5 @@
+# LF in the repository and the working tree, on every platform: the workflows, the shell gates and
+# the generated documents are all LF.
+* text=auto eol=lf
+*.png binary
+*.ico binary

@@ -1,0 +1,23 @@
+<Project>
+
+  <!-- Solution-wide language, analyzer and audit settings.
+       Declared once here; projects do not redeclare them. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+
+  <!-- The one version for the repository: SemVer X.Y.Z, bumped on develop before a release (§14).
+       PackageVersion, every frontend's package.json, the image tag :X.Y.Z and the git
+       tag vX.Y.Z all come from it, and every one of them must equal it. -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

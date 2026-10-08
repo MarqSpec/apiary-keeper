@@ -1,0 +1,155 @@
+# Local development for ApiaryCopilot, shaped like a deployed environment: the nginx proxy built from proxy/ in front
+# of the api (D-16), at http://127.0.0.1:5080/; the api built from source, serving the built family PWA (the image's
+# pwa stage builds src/pwa) and reachable only through the proxy, as on Railway; PostgreSQL pulled as postgres:17; and
+# MinIO as the media bucket, which the browser reaches directly at http://127.0.0.1:9000 with the presigned URLs the api
+# issues, as phones reach the Railway bucket (D-13); and Keycloak at http://127.0.0.1:8180 with the seeded synthetic
+# realm (D-19, D-22; below), sending its mail - invitations included - to Mailpit, whose inbox is at http://127.0.0.1:8025.
+# Ports are published on 127.0.0.1 only - nothing here is reachable from the network you are on.
+#
+#   cp .env.example .env    # then set POSTGRES_PASSWORD, MINIO_ROOT_USER and MINIO_ROOT_PASSWORD; compose refuses to start without them
+#   docker compose up --build
+#   docker compose --profile test build unit-tests
+#
+# The api runs as Development, so it applies the EF Core migrations to postgres when it starts.
+
+services:
+  proxy:
+    image: apiary-keeper-proxy:dev
+    build:
+      context: proxy
+      target: runtime
+      args:
+        VERSION: 0.0.0-dev
+    ports:
+      - "127.0.0.1:5080:8080"
+    environment:
+      PROXY_APP_HOSTS: "localhost 127.0.0.1"
+      PROXY_APP_UPSTREAM: "api:8080"
+      # PROXY_BASIC_AUTH is left at the image's "off": the staging gate is for staging only (DEPLOYMENT.md §3).
+    depends_on:
+      - api
+
+  api:
+    image: apiary-keeper:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        VERSION: 0.0.0-dev
+    # No published port: the api is reached through the proxy, as on Railway's private network.
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__ApiaryCopilot: "Host=postgres;Port=5432;Database=apiary_copilot;Username=apiary;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      # The media bucket (DEPLOYMENT.md §3): the api reads it as minio:9000 and signs URLs for 127.0.0.1:9000, where the
+      # browser reaches it. Plain http and path-style URLs are for this local MinIO only.
+      Media__ServiceUrl: "http://minio:9000"
+      Media__PublicUrl: "http://127.0.0.1:9000"
+      Media__Bucket: "media"
+      Media__AccessKeyId: "${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}"
+      Media__SecretAccessKey: "${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}"
+      Media__ForcePathStyle: "true"
+      Media__AllowHttp: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      media-bucket:
+        condition: service_completed_successfully
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: apiary_copilot
+      POSTGRES_USER: apiary
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apiary -d apiary_copilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The local media bucket. MinIO's own images are no longer published, so this is pgsty/minio
+  # (https://github.com/pgsty/minio): a community fork of the archived upstream server, AGPLv3, unsigned (it carries
+  # buildx attestations), running as root. Pinned by digest - the tag is only a label, Docker Hub tags move
+  # (DEPLOYMENT.md §1). Never deployed: Railway's bucket is the real one.
+  minio:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}"
+      # The PWA's origins, so the browser may PUT and GET across origins; no web console. This is MinIO's server-wide
+      # CORS, which echoes back any header: it does not rehearse the Railway bucket's rule (DEPLOYMENT.md §4, §7).
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:5080,http://127.0.0.1:5080"
+      MINIO_BROWSER: "off"
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - media-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Creates the `media` bucket once MinIO is ready, then exits; the api starts after it.
+  media-bucket:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" > /dev/null && mc mb --ignore-existing local/media']
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}"
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  # Keycloak, the identity provider (ARCHITECTURE.md D-19, D-22), at http://127.0.0.1:8180/, in development mode with its
+  # embedded dev database and no volume: on start it imports the seeded synthetic realm `apiary-keeper-dev` from
+  # keycloak/import/. Every user, password and client secret in that file is a synthetic test value for that
+  # realm alone; its test client's direct-access grant exists there only, never in a real realm. An existing realm is
+  # not re-imported, so after changing the file run `docker compose up -d --force-recreate keycloak`. Pinned by digest
+  # (DEPLOYMENT.md §1). The api below has sign-in off (no SignIn__ settings); DEPLOYMENT.md §1 "Signing in
+  # locally" runs the api from source against this Keycloak instead. No administrator is seeded, so the
+  # admin console has no login: the realm is changed in the committed file, never by hand.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+    # The image has no curl: bash asks the management port's readiness endpoint, which answers once the realm is imported.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  # Mailpit, the mail server Keycloak sends to locally (the realm's smtpServer host is `mailpit`): it keeps every message
+  # - an invitation, a password reset - and delivers none, so nothing leaves this machine. Its inbox is at
+  # http://127.0.0.1:8025. Pinned by digest, as the integration tier's TestMailbox runs it (DEPLOYMENT.md §1).
+  mailpit:
+    image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
+    ports:
+      - "127.0.0.1:8025:8025"
+
+  unit-tests:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    # The tests run while the `test` stage builds; this only reports success.
+    command: ["true"]
+
+volumes:
+  postgres-data:
+  media-data:

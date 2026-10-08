@@ -1,0 +1,81 @@
+#!/bin/sh
+# Sourced by the nginx image's entrypoint before it renders templates/ (20-envsubst-on-templates.sh). Refuses to start
+# on a missing or malformed setting, naming it, rather than letting nginx start with a broken config; then writes the
+# staging gate's password file when PROXY_BASIC_AUTH=on, and sets the listen lines, adding IPv6 only where the
+# container has it (Railway's private network is IPv6; Docker often is not).
+set -eu
+
+proxy_refuse() {
+  echo "proxy: $1" >&2
+  exit 1
+}
+
+[ -n "${PROXY_APP_HOSTS:-}" ] || proxy_refuse "set PROXY_APP_HOSTS to the host names the app answers on, e.g. 'apiary-keeper.marqspec.com'"
+[ -n "${PROXY_APP_UPSTREAM:-}" ] || proxy_refuse "set PROXY_APP_UPSTREAM to the app's private address, e.g. 'app.railway.internal:8080'"
+[ -n "${PROXY_MAX_BODY_SIZE:-}" ] || proxy_refuse "set PROXY_MAX_BODY_SIZE, e.g. '30m'"
+
+# Each value is pasted into the nginx configuration, so anything but its own characters is refused.
+case "$PROXY_APP_HOSTS" in
+  *[!a-z0-9.\ -]*) proxy_refuse "PROXY_APP_HOSTS '$PROXY_APP_HOSTS' may hold only lower-case host names separated by spaces" ;;
+esac
+# A ']' in a bracket expression is literal only first: '[\]' is no escape in BusyBox ash, and that class refused nothing.
+case "$PROXY_APP_UPSTREAM" in
+  *[!]a-zA-Z0-9.:_[-]*) proxy_refuse "PROXY_APP_UPSTREAM '$PROXY_APP_UPSTREAM' must be host:port" ;;
+  *:*) ;;
+  *) proxy_refuse "PROXY_APP_UPSTREAM '$PROXY_APP_UPSTREAM' must be host:port" ;;
+esac
+case "$PROXY_MAX_BODY_SIZE" in
+  *[!0-9kKmM]*|[!0-9]*) proxy_refuse "PROXY_MAX_BODY_SIZE '$PROXY_MAX_BODY_SIZE' must be a size such as '30m'" ;;
+esac
+
+# The staging gate: HTTP basic authentication on every path but /health, off unless PROXY_BASIC_AUTH=on.
+# Neither credential is ever echoed, and neither reaches the nginx configuration: the user name and a SHA-512 crypt
+# hash of the password go to a password file only this user can read. (An unset here would not reach nginx: the image's
+# entrypoint sources this file in a subshell.)
+proxy_htpasswd=/etc/nginx/auth/htpasswd
+rm -f "$proxy_htpasswd"
+case "${PROXY_BASIC_AUTH:-off}" in
+  on)
+    [ -n "${PROXY_BASIC_AUTH_USER:-}" ] || proxy_refuse "set PROXY_BASIC_AUTH_USER, the user name the staging gate asks for"
+    [ -n "${PROXY_BASIC_AUTH_PASSWORD:-}" ] || proxy_refuse "set PROXY_BASIC_AUTH_PASSWORD, the staging gate's shared secret"
+    case "$PROXY_BASIC_AUTH_USER" in
+      *[!A-Za-z0-9._-]*) proxy_refuse "PROXY_BASIC_AUTH_USER may hold only letters, digits, '.', '_' and '-'" ;;
+    esac
+    [ "${#PROXY_BASIC_AUTH_USER}" -le 64 ] || proxy_refuse "PROXY_BASIC_AUTH_USER may be at most 64 characters"
+    case "$PROXY_BASIC_AUTH_PASSWORD" in
+      *[!A-Za-z0-9._~+/=-]*) proxy_refuse "PROXY_BASIC_AUTH_PASSWORD may hold only letters, digits and '.', '_', '~', '+', '/', '=', '-'" ;;
+    esac
+    # Nothing limits failed attempts, so the length is the defence.
+    [ "${#PROXY_BASIC_AUTH_PASSWORD}" -ge 16 ] || proxy_refuse "PROXY_BASIC_AUTH_PASSWORD must be at least 16 characters"
+    [ "${#PROXY_BASIC_AUTH_PASSWORD}" -le 128 ] || proxy_refuse "PROXY_BASIC_AUTH_PASSWORD may be at most 128 characters"
+    # printf is a shell builtin, so the password is in no process's arguments.
+    proxy_hash="$(printf '%s\n' "$PROXY_BASIC_AUTH_PASSWORD" | cryptpw -m sha512)" || proxy_refuse "PROXY_BASIC_AUTH_PASSWORD could not be hashed"
+    # Load-bearing, not belt and braces: BusyBox cryptpw prints an MD5 '$1$' hash and exits 0 for a method it lacks
+    # (bcrypt among them), so only the prefix shows which scheme was used.
+    case "$proxy_hash" in
+      '$6$'*) ;;
+      *) proxy_refuse "PROXY_BASIC_AUTH_PASSWORD could not be hashed" ;;
+    esac
+    (umask 077 && printf '%s:%s\n' "$PROXY_BASIC_AUTH_USER" "$proxy_hash" > "$proxy_htpasswd") ||
+      proxy_refuse "PROXY_BASIC_AUTH: could not write $proxy_htpasswd"
+    PROXY_GATE="auth_basic \"Apiary-Keeper\"; auth_basic_user_file $proxy_htpasswd; proxy_set_header Authorization \"\";"
+    ;;
+  off)
+    [ -z "${PROXY_BASIC_AUTH_USER:-}${PROXY_BASIC_AUTH_PASSWORD:-}" ] ||
+      proxy_refuse "PROXY_BASIC_AUTH is not 'on' but PROXY_BASIC_AUTH_USER or PROXY_BASIC_AUTH_PASSWORD is set: set PROXY_BASIC_AUTH=on to gate, or remove them"
+    PROXY_GATE="auth_basic off;"
+    ;;
+  *) proxy_refuse "PROXY_BASIC_AUTH must be 'on' or 'off'" ;;
+esac
+export PROXY_GATE
+
+if [ -f /proc/net/if_inet6 ]; then
+  PROXY_LISTEN_DEFAULT="listen 8080 default_server; listen [::]:8080 default_server;"
+  PROXY_LISTEN_APP="listen 8080; listen [::]:8080;"
+  PROXY_LISTEN_METRICS="listen 9113; listen [::]:9113;"
+else
+  PROXY_LISTEN_DEFAULT="listen 8080 default_server;"
+  PROXY_LISTEN_APP="listen 8080;"
+  PROXY_LISTEN_METRICS="listen 9113;"
+fi
+export PROXY_LISTEN_DEFAULT PROXY_LISTEN_APP PROXY_LISTEN_METRICS

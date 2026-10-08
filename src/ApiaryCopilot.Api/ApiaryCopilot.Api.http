@@ -1,0 +1,105 @@
+@ApiaryCopilot.Api_HostAddress = http://localhost:5126
+
+GET {{ApiaryCopilot.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+# The yard endpoints need a signed-in owner or helper (ARCHITECTURE.md D-19): sign in at /api/auth/login with
+# SignIn__* set and send the session cookie and X-CSRF: 1, or an agent's bearer token. With sign-in off they answer 503.
+POST {{ApiaryCopilot.Api_HostAddress}}/api/yards
+Content-Type: application/json
+
+{
+  "name": "Mesquite Flat",
+  "location": { "latitude": 30.2672, "longitude": -97.7431 },
+  "state": "TX",
+  "county": "Travis",
+  "accessNotes": "North pasture gate.",
+  "forageNotes": "Huisache in February, mesquite in May.",
+  "landowner": {
+    "contact": "Synthetic Landowner, 555-0100",
+    "terms": "honey",
+    "nearbyCrops": "Cotton to the east.",
+    "sprayContact": "Synthetic Crop Duster, 555-0101"
+  }
+}
+
+###
+
+GET {{ApiaryCopilot.Api_HostAddress}}/api/yards?limit=50
+Accept: application/json
+
+###
+
+# Put a yard id from the list above into @yardId, and a colony id from the register below into @colonyId.
+@yardId = 00000000-0000-0000-0000-000000000000
+@colonyId = 00000000-0000-0000-0000-000000000000
+
+POST {{ApiaryCopilot.Api_HostAddress}}/api/colonies
+Content-Type: application/json
+
+{
+  "tagId": "A-01",
+  "hiveNumber": "TX-0412",
+  "yardId": "{{yardId}}",
+  "hiveType": "Langstroth 10-frame",
+  "boxCount": 2,
+  "occurredOn": "2026-04-01",
+  "queen": { "source": "Synthetic Queen Breeder", "markColour": "green", "markYear": 2024, "introducedOn": "2026-03-15" }
+}
+
+###
+
+POST {{ApiaryCopilot.Api_HostAddress}}/api/colonies/{{colonyId}}/splits
+Content-Type: application/json
+
+{
+  "tagId": "A-02",
+  "hiveNumber": "TX-0413",
+  "yardId": "{{yardId}}",
+  "hiveType": "Langstroth 10-frame",
+  "boxCount": 1,
+  "occurredOn": "2026-04-12"
+}
+
+###
+
+# Dated before the registered queen's 2026-03-15, so the 200 carries "warnings": {"introducedOn": [...]};
+# a date later than today is refused with a 400 on introducedOn instead.
+POST {{ApiaryCopilot.Api_HostAddress}}/api/colonies/{{colonyId}}/requeens
+Content-Type: application/json
+
+{ "source": "Raised in the yard", "markColour": "blue", "markYear": 2025, "introducedOn": "2026-03-01" }
+
+###
+
+GET {{ApiaryCopilot.Api_HostAddress}}/api/colonies/{{colonyId}}/events
+Accept: application/json
+
+###
+
+POST {{ApiaryCopilot.Api_HostAddress}}/api/colonies/{{colonyId}}/inspections
+Content-Type: application/json
+
+{
+  "inspectedOn": "2026-04-12",
+  "findings": {
+    "queenSeen": true,
+    "eggsSeen": true,
+    "broodFrames": 6,
+    "broodPattern": "solid",
+    "foodStores": "adequate",
+    "temperament": "calm",
+    "diseaseSigns": [],
+    "actionsTaken": ["fed"]
+  },
+  "notes": "Synthetic: laying well, added a feeder."
+}
+
+###
+
+GET {{ApiaryCopilot.Api_HostAddress}}/api/colonies/{{colonyId}}/inspections
+Accept: application/json
+
+###
